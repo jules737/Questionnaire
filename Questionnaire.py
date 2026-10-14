@@ -27,7 +27,7 @@ if nature_test == "Test de fonctionnalité":
     if produit != "Sélectionner...":
         confort = st.slider("Évaluez le confort du produit (1 à 5) :", min_value=1, max_value=5, value=3, step=1)
         
-        # Enregistrement avec des champs vides pour les questions de durabilité (pour garder le tableur propre)
+        # Enregistrement
         st.session_state.responses = {
             "nature_test": nature_test, 
             "produit": produit, 
@@ -78,20 +78,23 @@ elif nature_test == "Test de durabilité":
 
 # --- STEP 3 : Validation et envoi vers Google Sheets ---
 if nature_test in ["Test de fonctionnalité", "Test de durabilité"]:
-    # On n'affiche le bouton que si un produit a bien été sélectionné dans l'une ou l'autre des branches
-    if st.session_state.responses.get("produit") and st.session_state.responses.get("produit") != "Sélectionner...":
+    
+    nom_onglet = st.session_state.responses.get("produit")
+    
+    if nom_onglet and nom_onglet != "Sélectionner...":
         if st.button("Envoyer mes réponses"):
             try:
-                # Lecture des 7 colonnes du tableur existant
-                existing_data = conn.read(worksheet="Feuille 1", usecols=list(range(7)), ttl=5)
+                # 1. On lit les données de l'onglet qui porte le nom exact du produit
+                existing_data = conn.read(worksheet=nom_onglet, usecols=list(range(7)), ttl=5)
                 existing_data = existing_data.dropna(how="all")
                 
-                # Ajout de la nouvelle ligne
+                # 2. Ajout de la nouvelle ligne
                 new_row = pd.DataFrame([st.session_state.responses])
                 updated_data = pd.concat([existing_data, new_row], ignore_index=True)
                 
-                # Mise à jour sur Google Sheets
-                conn.update(worksheet="Feuille 1", data=updated_data)
-                st.success("✅ Vos réponses ont été envoyées et enregistrées avec succès !")
+                # 3. Mise à jour du bon onglet sur Google Sheets
+                conn.update(worksheet=nom_onglet, data=updated_data)
+                st.success(f"✅ Vos réponses ont été ajoutées dans l'onglet '{nom_onglet}' avec succès !")
+            
             except Exception as e:
-                st.error(f"Une erreur est survenue lors de l'envoi : {e}")
+                st.error(f"Erreur : L'onglet '{nom_onglet}' n'a pas été trouvé dans votre Google Sheets. Veuillez le créer avec ce nom exact.")
